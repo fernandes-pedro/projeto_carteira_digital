@@ -106,3 +106,25 @@ class CarteiraRepository:
             ).mappings().first()
 
         return dict(row) if row else None
+
+    def buscar_saldos(self, endereco_carteira: str) -> List[Dict[str, Any]]:
+        """
+        Retorna todos os saldos de uma carteira com informações das moedas.
+        """
+        with get_connection() as conn:
+            rows = conn.execute(
+                text("""
+                    SELECT sc.id_moeda,
+                           m.codigo AS codigo_moeda,
+                           m.nome AS nome_moeda,
+                           sc.saldo,
+                           sc.data_atualizacao
+                      FROM saldo_carteira sc
+                      JOIN moeda m ON sc.id_moeda = m.id_moeda
+                     WHERE sc.endereco_carteira = :endereco
+                     ORDER BY m.codigo
+                """),
+                {"endereco": endereco_carteira},
+            ).mappings().all()
+
+        return [dict(r) for r in rows]

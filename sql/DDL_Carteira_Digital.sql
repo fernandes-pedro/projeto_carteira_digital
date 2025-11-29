@@ -27,3 +27,36 @@ USE wallet_homolog;
 -- =========================================================
 --  Tabelas (Aluno deve fazer o modelo)
 -- =========================================================
+
+Create Table IF NOT EXISTS MOEDA(
+    id_moeda SMALLINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    codigo varchar(5) UNIQUE NOT NULL,
+    nome varchar(50) NOT NULL,
+    tipo varchar(50) NOT NULL
+);
+
+INSERT INTO MOEDA(codigo, nome) VALUES
+('USD', 'Dólar Americano'),
+('SOL', 'Solana'),
+('BTC', 'Bitcoin'),
+('ETH', 'Ethereum')
+ON DUPLICATE KEY UPDATE codigo=codigo;
+
+Create Table IF NOT EXISTS CARTEIRA(
+    endereco_carteira CHAR(32) NOT NULL PRIMARY KEY,
+    hash_chave_privada VARCHAR(64) NOT NULL,
+    data_criacao DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    status_ativo varchar(10) NOT NULL DEFAULT 'ATIVO'
+);
+
+Create Table IF NOT EXISTS SALDO_CARTEIRA(
+    endereco_carteira CHAR(32) NOT NULL,
+    id_moeda SMALLINT NOT NULL,
+    saldo DECIMAL(18,8) NOT NULL DEFAULT 0.00,
+    data_atualizacao DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    PRIMARY KEY(endereco_carteira, id_moeda),
+    FOREIGN KEY(endereco_carteira) REFERENCES CARTEIRA(endereco_carteira),
+    FOREIGN KEY(id_moeda) REFERENCES MOEDA(id_moeda)
+    
+);

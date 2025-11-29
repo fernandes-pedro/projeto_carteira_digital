@@ -1,7 +1,7 @@
 from typing import List
 
 from api.persistence.repositories.carteira_repository import CarteiraRepository
-from api.models.carteira_models import Carteira, CarteiraCriada
+from api.models.carteira_models import Carteira, CarteiraCriada, Saldo
 
 
 class CarteiraService:
@@ -51,3 +51,19 @@ class CarteiraService:
             data_criacao=row["data_criacao"],
             status=row["status"],
         )
+
+    def buscar_saldos(self, endereco_carteira: str) -> List[Saldo]:
+        """
+        Retorna todos os saldos da carteira.
+        """
+        rows = self.carteira_repo.buscar_saldos(endereco_carteira)
+        return [
+            Saldo(
+                id_moeda=r["id_moeda"],
+                codigo_moeda=r["codigo_moeda"],
+                nome_moeda=r["nome_moeda"],
+                saldo=r["saldo"],
+                data_atualizacao=r["data_atualizacao"],
+            )
+            for r in rows
+        ]
