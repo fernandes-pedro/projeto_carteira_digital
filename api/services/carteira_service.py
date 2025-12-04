@@ -1,22 +1,48 @@
 from typing import List
+from datetime import datetime
+from decimal import Decimal
 
 from api.persistence.repositories.carteira_repository import CarteiraRepository
-from api.models.carteira_models import Carteira, CarteiraCriada, Saldo
-
+from api.models.carteira_models import Carteira, CarteiraCriada, SaldoItem
+from api.services.key_service import gerar_chave
 
 class CarteiraService:
+    
+    MOEDAS_OBRIGATORIAS = ['BTC', 'ETH', 'SOL', 'USD', 'BRL']
+    
     def __init__(self, carteira_repo: CarteiraRepository):
         self.carteira_repo = carteira_repo
 
     def criar_carteira(self) -> CarteiraCriada:
-        row = self.carteira_repo.criar()
-        # row tem: endereco_carteira, data_criacao, status, hash_chave_privada, chave_privada
-        # não expomos o hash
+        
+        endereco, chave_privada_real, hash_chave_privada = gerar_chave()
+        
+        data_criacao = datetime.now()
+        status_ativo = "ATIVA"
+        try:
+            self.carteira_repo.criar_nova_carteira(
+                endereco=endereco,
+                hash_chave_privada=hash_chave_privada,
+                data_criacao=data_criacao,
+                status=status_ativo
+            )
+            
+            saldos_iniciais = [
+                SaldoItem(codigo_moeda=moeda, saldo=Decimal("0.00"))
+                for moeda in self.MOEDAS_OBRIGATORIAS
+            ]
+            
+            self.carteira_repo.inicializar_saldos(endereco, saldos_iniciais)
+            
+        except Exception as e:
+            print(f"Erro ao persistir a carteira: {e}")
+            raise Exception("Erro ao criar a carteira no banco de dados.")
+
         return CarteiraCriada(
-            endereco_carteira=row["endereco_carteira"],
-            data_criacao=row["data_criacao"],
-            status=row["status"],
-            chave_privada=row["chave_privada"],
+            endereco_carteira=endereco,
+            data_criacao=data_criacao,
+            status=status_ativo,
+            chave_privada=chave_privada_real,
         )
 
     def buscar_por_endereco(self, endereco_carteira: str) -> Carteira:

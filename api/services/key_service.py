@@ -1,6 +1,6 @@
 import secrets, hashlib, os
 
-def gera_chave():
+def gerar_chave():
     """
     Gera a Chave Privada, calcula seu HASH e gera o Endereço (Chave Pública).
     
