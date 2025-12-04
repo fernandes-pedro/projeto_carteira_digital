@@ -3,54 +3,49 @@ import secrets
 import hashlib
 from typing import Dict, Any, Optional, List
 
+from api.models.carteira_models import SaldoItem
 from sqlalchemy import text
-
+from datetime import datetime
 from api.persistence.db import get_connection
-
+from decimal import Decimal
 
 class CarteiraRepository:
     """
     Acesso a dados da carteira usando SQLAlchemy Core + SQL puro.
     """
 
-    def criar(self) -> Dict[str, Any]:
+    def criar_nova_carteira(self, endereco: str, hash_chave_privada: str, data_criacao: datetime, status: str) -> Dict[str, Any]:
         """
         Gera chave pública, chave privada, salva no banco (apenas hash da privada)
         e retorna os dados da carteira + chave privada em claro.
         """
-        # 1) Geração das chaves
-        private_key_size:int = int(os.getenv("PRIVATE_KEY_SIZE"))
-        public_key_size:int = int(os.getenv("PUBLIC_KEY_SIZE"))
-        chave_privada = secrets.token_hex(private_key_size)      # 32 bytes -> 64 hex chars (configurável depois)
-        endereco = secrets.token_hex(public_key_size)           # "chave pública" simplificada
-        hash_privada = hashlib.sha256(chave_privada.encode()).hexdigest()
 
         with get_connection() as conn:
-            # 2) INSERT
+            # 1) INSERT
             conn.execute(
                 text("""
-                    INSERT INTO carteira (endereco_carteira, hash_chave_privada)
-                    VALUES (:endereco, :hash_privada)
+                    INSERT INTO carteira (endereco_carteira, hash_chave_privada, data_criacao, status_ativo)
+                    VALUES (:endereco, :hash_privada, :data_criacao, :status)
                 """),
-                {"endereco": endereco, "hash_privada": hash_privada},
+                {
+                    "endereco": endereco,
+                    "hash_privada": hash_chave_privada,
+                    "data_criacao": data_criacao,
+                    "status": status,
+                },
             )
 
-            # 3) SELECT para retornar a carteira criada
+            # 2) SELECT para retornar a carteira criada
             row = conn.execute(
                 text("""
-                    SELECT endereco_carteira,
-                           data_criacao,
-                           status,
-                           hash_chave_privada
-                      FROM carteira
-                     WHERE endereco_carteira = :endereco
+                    SELECT endereco_carteira, data_criacao, status_ativo
+                    FROM carteira
+                    WHERE endereco_carteira = :endereco
                 """),
                 {"endereco": endereco},
             ).mappings().first()
 
-        carteira = dict(row)
-        carteira["chave_privada"] = chave_privada
-        return carteira
+        return dict(row) if row else {}
 
     def buscar_por_endereco(self, endereco_carteira: str) -> Optional[Dict[str, Any]]:
         with get_connection() as conn:
@@ -128,3 +123,40 @@ class CarteiraRepository:
             ).mappings().all()
 
         return [dict(r) for r in rows]
+    
+    def inicializar_saldos(self, endereco_carteira: str, saldos_iniciais: List[SaldoItem]):
+        codigos = [s.codigo_moeda for s in saldos_iniciais]
+        
+        with get_connection() as conn:
+            moedas_map = conn.execute(
+                text(f"""
+                    SELECT id_moeda, codigo
+                    FROM moeda
+                    WHERE codigo IN ({', '.join(f"'{c}'" for c in codigos)})
+                """)
+            ).mappings().all()
+        
+        moeda_id_map = {m["codigo"]: m["id_moeda"] for m in moedas_map}
+        
+        dados_para_insercao = []
+        for saldo_item in saldos_iniciais:
+            id_moeda = moeda_id_map.get(saldo_item.codigo_moeda)
+            
+            if id_moeda is None:
+                print(f"Aviso: Moeda {saldo_item.codigo_moeda} não encontrada no DB. Ignorando inicialização.")
+                continue
+            
+            dados_para_insercao.append({
+                "endereco_carteira": endereco_carteira,
+                "id_moeda": id_moeda,
+                "saldo": saldo_item.saldo, # Deve ser 0.00
+            })
+            
+            if dados_para_insercao:
+                conn.execute(
+                    text("""
+                        INSERT INTO saldo_carteira (endereco_carteira, id_moeda, saldo)
+                        VALUES (:endereco_carteira, :id_moeda, :saldo)
+                    """),
+                    dados_para_insercao,
+                )
