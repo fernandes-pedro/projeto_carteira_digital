@@ -35,11 +35,11 @@ Create Table IF NOT EXISTS MOEDA(
     tipo varchar(50) NOT NULL
 );
 
-INSERT INTO MOEDA(codigo, nome) VALUES
-('USD', 'Dólar Americano'),
-('SOL', 'Solana'),
-('BTC', 'Bitcoin'),
-('ETH', 'Ethereum')
+INSERT INTO MOEDA(codigo, nome, tipo) VALUES
+('USD', 'Dólar Americano', 'FIAT'),
+('SOL', 'Solana', 'CRYPTO'),
+('BTC', 'Bitcoin', 'CRYPTO'),
+('ETH', 'Ethereum', 'CRYPTO')
 ON DUPLICATE KEY UPDATE codigo=codigo;
 
 Create Table IF NOT EXISTS CARTEIRA(
