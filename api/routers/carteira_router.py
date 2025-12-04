@@ -1,4 +1,6 @@
 from fastapi import APIRouter, HTTPException, Depends
+from models.carteira_models import CarteiraCriada
+from services.carteira_service import CarteiraService
 from typing import List
 
 from api.services.carteira_service import CarteiraService
@@ -14,7 +16,7 @@ def get_carteira_service() -> CarteiraService:
     return CarteiraService(repo)
 
 
-@router.post("", response_model=CarteiraCriada, status_code=201)
+@router.post("/carteiras", response_model=CarteiraCriada, status_code=201)
 def criar_carteira(
     service: CarteiraService = Depends(get_carteira_service),
 )->CarteiraCriada:
