@@ -1,10 +1,11 @@
 from typing import List
 from datetime import datetime
 from decimal import Decimal
+import os
 
 from api.services.coinbase_service import get_cotacao
 from api.persistence.repositories.carteira_repository import CarteiraRepository
-from api.models.carteira_models import Carteira, CarteiraCriada, SaldoItem, ConversaoInput
+from api.models.carteira_models import Carteira, CarteiraCriada, SaldoItem, ConversaoInput, MovimentoHistorico, TransferenciaInput
 from api.services.key_service import gerar_chave
 
 TAXA_SAQUE_PERCENTUAL = Decimal(os.getenv("TAXA_SAQUE_PERCENTUAL", "0.01"))
@@ -82,13 +83,13 @@ class CarteiraService:
             status=row["status"],
         )
 
-    def buscar_saldos(self, endereco_carteira: str) -> List[Saldo]:
+    def buscar_saldos(self, endereco_carteira: str) -> List[SaldoItem]:
         """
         Retorna todos os saldos da carteira.
         """
         rows = self.carteira_repo.buscar_saldos(endereco_carteira)
         return [
-            Saldo(
+            SaldoItem(
                 id_moeda=r["id_moeda"],
                 codigo_moeda=r["codigo_moeda"],
                 nome_moeda=r["nome_moeda"],
