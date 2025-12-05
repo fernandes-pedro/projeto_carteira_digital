@@ -6,6 +6,7 @@ from api.persistence.repositories.carteira_repository import CarteiraRepository
 from api.models.carteira_models import Carteira, CarteiraCriada, SaldoItem
 from api.services.key_service import gerar_chave
 
+TAXA_SAQUE_PERCENTUAL = Decimal(os.getenv("TAXA_SAQUE_PERCENTUAL", "0.01"))
 class CarteiraService:
     
     MOEDAS_OBRIGATORIAS = ['BTC', 'ETH', 'SOL', 'USD', 'BRL']
@@ -93,3 +94,43 @@ class CarteiraService:
             )
             for r in rows
         ]
+        
+    def depositar(self, endereco_carteira: str, codigo_moeda: str, valor: Decimal) -> MovimentoHistorico:
+        if valor <= 0:
+            raise ValueError("O valor do depósito deve ser positivo.")
+
+        try:
+            movimento = self.carteira_repo.registrar_deposito(endereco_carteira, codigo_moeda, valor)
+            return movimento
+        except Exception as e:
+            raise Exception(f"Falha ao processar depósito: {e}")
+        
+    def sacar(self, endereco_carteira: str, codigo_moeda: str, valor_saque: Decimal, chave_privada: str) -> MovimentoHistorico:
+        """
+        Registra um saque, debita valor + taxa e valida a chave privada.
+        """
+        if valor_saque <= 0:
+            raise ValueError("O valor do saque deve ser positivo.")
+
+        is_valid = self.carteira_repo.validar_chave_privada(endereco_carteira, chave_privada)
+        if not is_valid:
+            raise ValueError("Chave privada inválida ou carteira não encontrada.")
+
+        taxa = valor_saque * TAXA_SAQUE_PERCENTUAL
+        valor_total_debito = valor_saque + taxa
+        
+        saldo_atual = self.carteira_repo.buscar_saldo_por_moeda(endereco_carteira, codigo_moeda)
+        if saldo_atual is None or saldo_atual < valor_total_debito:
+            raise ValueError("Saldo insuficiente para cobrir o valor e a taxa.")
+
+        try:
+            movimento = self.carteira_repo.registrar_saque(
+                endereco_carteira=endereco_carteira,
+                codigo_moeda=codigo_moeda,
+                valor=valor_saque,
+                taxa=taxa,
+                valor_total_debito=valor_total_debito
+            )
+            return movimento
+        except Exception as e:
+            raise Exception(f"Falha ao processar saque: {e}")

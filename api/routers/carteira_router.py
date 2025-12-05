@@ -1,5 +1,5 @@
-from fastapi import APIRouter, HTTPException, Depends
-from models.carteira_models import CarteiraCriada
+from fastapi import APIRouter, HTTPException, Depends, status
+from models.carteira_models import CarteiraCriada, MovimentoInput, MovimentoHistorico
 from services.carteira_service import CarteiraService
 from typing import List
 
@@ -69,3 +69,58 @@ def buscar_saldos_carteira(
         return service.buscar_saldos(endereco_carteira)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    
+@router.post("/{endereco_carteira}/depositos", 
+             response_model=MovimentoHistorico, 
+             status_code=status.HTTP_201_CREATED)
+def realizar_deposito(
+    endereco_carteira: str,
+    movimento: MovimentoInput,
+    service: CarteiraService = Depends(get_carteira_service),
+) -> MovimentoHistorico:
+    """
+    Registra um depósito na carteira (entrada de fundos sem taxa).
+    """
+    if movimento.chave_privada is not None:
+         pass 
+         
+    try:
+        return service.depositar(
+            endereco_carteira=endereco_carteira,
+            codigo_moeda=movimento.codigo_moeda,
+            valor=movimento.valor
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+    
+@router.post("/{endereco_carteira}/saques", 
+            response_model=MovimentoHistorico, 
+            status_code=status.HTTP_201_CREATED)
+def realizar_saque(
+    endereco_carteira: str,
+    movimento: MovimentoInput,
+    service: CarteiraService = Depends(get_carteira_service),
+) -> MovimentoHistorico:
+    """
+    Registra um saque na carteira (saída de fundos com taxa).
+    Exige chave privada e validação de saldo.
+    """
+    if not movimento.chave_privada:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Chave privada é obrigatória para saques.")
+        
+    try:
+        return service.sacar(
+            endereco_carteira=endereco_carteira,
+            codigo_moeda=movimento.codigo_moeda,
+            valor_saque=movimento.valor,
+            chave_privada=movimento.chave_privada
+        )
+    except ValueError as e:
+        if "Chave privada inválida" in str(e):
+             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
+        else:
+             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
