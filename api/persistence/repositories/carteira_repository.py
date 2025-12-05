@@ -19,9 +19,19 @@ class CarteiraRepository:
 
     def criar_nova_carteira(self, endereco: str, hash_chave_privada: str, data_criacao: datetime, status: str) -> Dict[str, Any]:
         """
-        Gera chave pública, chave privada, salva no banco (apenas hash da privada)
-        e retorna os dados da carteira + chave privada em claro.
+        Salva no banco apenas o hash da chave privada (nunca a chave em claro).
+        Garante que o hash seja calculado corretamente antes de salvar.
         """
+        # Validação: garante que estamos recebendo um hash (64 caracteres hexadecimais)
+        if not hash_chave_privada or len(hash_chave_privada) != 64:
+            raise ValueError("Hash da chave privada inválido. Deve ter exatamente 64 caracteres hexadecimais.")
+        
+        # Garante que seja hexadecimal
+        try:
+            int(hash_chave_privada, 16)
+        except ValueError:
+            raise ValueError("Hash da chave privada deve ser hexadecimal.")
+        
         with get_connection() as conn:
             conn.execute(
                 text("""
@@ -30,7 +40,7 @@ class CarteiraRepository:
                 """),
                 {
                     "endereco": endereco,
-                    "hash_privada": hash_chave_privada,
+                    "hash_privada": hash_chave_privada.lower().strip(),
                     "data_criacao": data_criacao,
                     "status": status,
                 },
@@ -172,11 +182,18 @@ class CarteiraRepository:
     def validar_chave_privada(self, endereco_carteira: str, chave_privada: str) -> bool:
         """
         Verifica se a chave privada fornecida corresponde ao hash armazenado para o endereço.
+        IMPORTANTE: O banco deve armazenar apenas o HASH, nunca a chave privada em claro.
         """
-        if not chave_privada or not chave_privada.strip():
+        if not chave_privada:
             return False
         
-        hash_fornecido = hashlib.sha256(chave_privada.encode('utf-8')).hexdigest()
+        # Remove espaços em branco e caracteres de controle (como quebras de linha)
+        chave_privada_limpa = chave_privada.strip()
+        if not chave_privada_limpa:
+            return False
+        
+        # Calcula o hash da chave fornecida
+        hash_fornecido = hashlib.sha256(chave_privada_limpa.encode('utf-8')).hexdigest()
         
         with get_connection() as conn:
             row = conn.execute(
@@ -192,6 +209,18 @@ class CarteiraRepository:
             return False
             
         hash_armazenado = row["hash_chave_privada"]
+        
+        # Validação de segurança: garante que o que está no banco é um hash válido (64 chars hex)
+        if not hash_armazenado or len(hash_armazenado.strip()) != 64:
+            # Se não for um hash válido, pode ser que a chave privada foi salva por engano
+            # Nesse caso, vamos recalcular o hash do que está armazenado e comparar
+            # Mas isso não deveria acontecer se o código estiver correto
+            return False
+        
+        # Comparação case-insensitive (hashes hexadecimais são sempre lowercase)
+        hash_armazenado = hash_armazenado.strip().lower()
+        hash_fornecido = hash_fornecido.lower()
+        
         return hash_fornecido == hash_armazenado
 
 

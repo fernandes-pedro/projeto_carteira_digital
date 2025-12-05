@@ -1,6 +1,6 @@
 from typing import Literal, Optional
 from datetime import  datetime
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from decimal import Decimal
 
 class CarteiraCriada(BaseModel):
@@ -27,6 +27,13 @@ class MovimentoInput(BaseModel):
     valor: Decimal
     chave_privada: Optional[str] = None
     
+    @field_validator('chave_privada')
+    @classmethod
+    def limpar_chave_privada(cls, v):
+        if v is not None:
+            return v.strip() if isinstance(v, str) else v
+        return v
+    
 class MovimentoHistorico(BaseModel):
     id_movimento: int
     endereco_carteira: str
@@ -43,9 +50,23 @@ class ConversaoInput(BaseModel):
     valor_origem: Decimal 
     chave_privada: str
     
+    @field_validator('chave_privada')
+    @classmethod
+    def limpar_chave_privada(cls, v):
+        if v is not None:
+            return v.strip() if isinstance(v, str) else v
+        return v
+    
 class TransferenciaInput(BaseModel):
     """Modelo para a requisição de transferência."""
     endereco_destino: str
     codigo_moeda: str
     valor: Decimal
     chave_privada_origem: str
+    
+    @field_validator('chave_privada_origem')
+    @classmethod
+    def limpar_chave_privada(cls, v):
+        if v is not None:
+            return v.strip() if isinstance(v, str) else v
+        return v

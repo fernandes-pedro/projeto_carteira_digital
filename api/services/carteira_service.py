@@ -2,6 +2,7 @@ from typing import List
 from datetime import datetime
 from decimal import Decimal
 import os
+import hashlib
 
 from api.services.coinbase_service import get_cotacao
 from api.persistence.repositories.carteira_repository import CarteiraRepository
@@ -22,9 +23,20 @@ class CarteiraService:
         
         endereco, chave_privada_real, hash_chave_privada = gerar_chave()
         
+        # Validação: garante que o hash foi calculado corretamente (64 caracteres hex)
+        if not hash_chave_privada or len(hash_chave_privada) != 64:
+            raise ValueError("Erro ao gerar hash da chave privada.")
+        
+        # Garante que estamos passando o hash e não a chave privada
+        # A chave privada tem 64 caracteres hex (32 bytes), mas vamos recalcular o hash para garantir
+        hash_verificado = hashlib.sha256(chave_privada_real.encode('utf-8')).hexdigest()
+        if hash_verificado != hash_chave_privada:
+            raise ValueError("Inconsistência no cálculo do hash da chave privada.")
+        
         data_criacao = datetime.now()
         status_ativo = "ATIVA"
         try:
+            # IMPORTANTE: Passa apenas o hash, nunca a chave privada real
             self.carteira_repo.criar_nova_carteira(
                 endereco=endereco,
                 hash_chave_privada=hash_chave_privada,
@@ -119,7 +131,9 @@ class CarteiraService:
         if not chave_privada or not chave_privada.strip():
             raise ValueError("Chave privada é obrigatória para saques.")
 
-        is_valid = self.carteira_repo.validar_chave_privada(endereco_carteira, chave_privada)
+        # Limpa a chave privada antes de validar
+        chave_privada_limpa = chave_privada.strip()
+        is_valid = self.carteira_repo.validar_chave_privada(endereco_carteira, chave_privada_limpa)
         if not is_valid:
             raise ValueError("Chave privada inválida ou carteira não encontrada.")
 
@@ -147,7 +161,9 @@ class CarteiraService:
         if not conversao_data.chave_privada or not conversao_data.chave_privada.strip():
             raise ValueError("Chave privada é obrigatória para conversão.")
     
-        if not self.carteira_repo.validar_chave_privada(endereco_carteira, conversao_data.chave_privada):
+        # Limpa a chave privada antes de validar
+        chave_privada_limpa = conversao_data.chave_privada.strip()
+        if not self.carteira_repo.validar_chave_privada(endereco_carteira, chave_privada_limpa):
             raise ValueError("Chave privada inválida ou carteira não encontrada.")
 
         cotacao = await get_cotacao(conversao_data.codigo_origem, conversao_data.codigo_destino)
