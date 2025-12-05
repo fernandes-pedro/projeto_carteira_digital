@@ -108,8 +108,11 @@ def realizar_saque(
     service: CarteiraService = Depends(get_carteira_service),
 ) -> MovimentoHistorico:
     """Registra um saque (saída com taxa e validação de chave privada)."""
-    if not movimento.chave_privada:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Chave privada é obrigatória para saques.")
+    if not movimento.chave_privada or not movimento.chave_privada.strip():
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, 
+            detail="Chave privada é obrigatória para saques."
+        )
 
     try:
         return service.sacar(
@@ -119,10 +122,9 @@ def realizar_saque(
             chave_privada=movimento.chave_privada
         )
     except ValueError as e:
-        if "Chave privada inválida" in str(e):
+        if "Chave privada inválida" in str(e) or "Chave privada" in str(e):
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
-        else:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
@@ -136,8 +138,11 @@ async def realizar_conversao(
     service: CarteiraService = Depends(get_carteira_service),
 ):
     """Converte saldo usando cotação da Coinbase com taxa aplicada."""
-    if not conversao.chave_privada:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Chave privada é obrigatória.")
+    if not conversao.chave_privada or not conversao.chave_privada.strip():
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, 
+            detail="Chave privada é obrigatória."
+        )
 
     try:
         return await service.converter_moedas(
@@ -145,12 +150,11 @@ async def realizar_conversao(
             conversao_data=conversao
         )
     except ValueError as e:
-        if "Chave privada inválida" in str(e):
+        if "Chave privada inválida" in str(e) or "Chave privada" in str(e):
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
         elif "Saldo insuficiente" in str(e):
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
-        else:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Erro: {e}")
 

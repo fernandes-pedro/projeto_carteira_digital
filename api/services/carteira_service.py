@@ -116,6 +116,9 @@ class CarteiraService:
         if valor_saque <= 0:
             raise ValueError("O valor do saque deve ser positivo.")
 
+        if not chave_privada or not chave_privada.strip():
+            raise ValueError("Chave privada é obrigatória para saques.")
+
         is_valid = self.carteira_repo.validar_chave_privada(endereco_carteira, chave_privada)
         if not is_valid:
             raise ValueError("Chave privada inválida ou carteira não encontrada.")
@@ -140,6 +143,9 @@ class CarteiraService:
             raise Exception(f"Falha ao processar saque: {e}")
         
     async def converter_moedas(self, endereco_carteira: str, conversao_data: ConversaoInput):
+    
+        if not conversao_data.chave_privada or not conversao_data.chave_privada.strip():
+            raise ValueError("Chave privada é obrigatória para conversão.")
     
         if not self.carteira_repo.validar_chave_privada(endereco_carteira, conversao_data.chave_privada):
             raise ValueError("Chave privada inválida ou carteira não encontrada.")

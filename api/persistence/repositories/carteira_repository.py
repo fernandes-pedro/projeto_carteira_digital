@@ -173,6 +173,9 @@ class CarteiraRepository:
         """
         Verifica se a chave privada fornecida corresponde ao hash armazenado para o endereço.
         """
+        if not chave_privada or not chave_privada.strip():
+            return False
+        
         hash_fornecido = hashlib.sha256(chave_privada.encode('utf-8')).hexdigest()
         
         with get_connection() as conn:
