@@ -4,7 +4,7 @@ from typing import List, Dict, Any
 from api.models.carteira_models import (
     CarteiraCriada,
     Carteira,
-    Saldo,
+    SaldoItem,
     MovimentoInput,
     MovimentoHistorico,
     ConversaoInput,
@@ -66,7 +66,7 @@ def bloquear_carteira(
         raise HTTPException(status_code=404, detail=str(e))
 
 
-@router.get("/{endereco_carteira}/saldos", response_model=List[Saldo])
+@router.get("/{endereco_carteira}/saldos", response_model=List[SaldoItem])
 def buscar_saldos_carteira(
     endereco_carteira: str,
     service: CarteiraService = Depends(get_carteira_service),

@@ -9,10 +9,11 @@ class CarteiraCriada(BaseModel):
     data_criacao: datetime
     status: Literal["ATIVA","BLOQUEADA"]
     
-class CarteiraBase(BaseModel):
+class Carteira(BaseModel):
     endereco_carteira: str
     data_criacao: datetime
     status_ativo: str
+    
 class SaldoItem(BaseModel):
     codigo_moeda: str
     saldo: Decimal
