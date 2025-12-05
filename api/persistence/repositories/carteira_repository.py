@@ -137,22 +137,22 @@ class CarteiraRepository:
                     WHERE codigo IN ({', '.join(f"'{c}'" for c in codigos)})
                 """)
             ).mappings().all()
-        
-        moeda_id_map = {m["codigo"]: m["id_moeda"] for m in moedas_map}
-        
-        dados_para_insercao = []
-        for saldo_item in saldos_iniciais:
-            id_moeda = moeda_id_map.get(saldo_item.codigo_moeda)
             
-            if id_moeda is None:
-                print(f"Aviso: Moeda {saldo_item.codigo_moeda} não encontrada no DB. Ignorando inicialização.")
-                continue
+            moeda_id_map = {m["codigo"]: m["id_moeda"] for m in moedas_map}
             
-            dados_para_insercao.append({
-                "endereco_carteira": endereco_carteira,
-                "id_moeda": id_moeda,
-                "saldo": saldo_item.saldo,
-            })
+            dados_para_insercao = []
+            for saldo_item in saldos_iniciais:
+                id_moeda = moeda_id_map.get(saldo_item.codigo_moeda)
+                
+                if id_moeda is None:
+                    print(f"Aviso: Moeda {saldo_item.codigo_moeda} não encontrada no DB. Ignorando inicialização.")
+                    continue
+                
+                dados_para_insercao.append({
+                    "endereco_carteira": endereco_carteira,
+                    "id_moeda": id_moeda,
+                    "saldo": saldo_item.saldo,
+                })
             
             if dados_para_insercao:
                 conn.execute(

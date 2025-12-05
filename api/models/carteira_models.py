@@ -12,7 +12,7 @@ class CarteiraCriada(BaseModel):
 class Carteira(BaseModel):
     endereco_carteira: str
     data_criacao: datetime
-    status_ativo: str
+    status: str
     
 class SaldoItem(BaseModel):
     codigo_moeda: str

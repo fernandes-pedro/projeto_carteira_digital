@@ -37,6 +37,7 @@ Create Table IF NOT EXISTS MOEDA(
 
 INSERT INTO MOEDA(codigo, nome, tipo) VALUES
 ('USD', 'Dólar Americano', 'FIAT'),
+('BRL', 'Real (Brasil)', 'FIAT'),
 ('SOL', 'Solana', 'CRYPTO'),
 ('BTC', 'Bitcoin', 'CRYPTO'),
 ('ETH', 'Ethereum', 'CRYPTO')
