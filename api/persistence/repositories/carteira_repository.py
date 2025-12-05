@@ -427,3 +427,95 @@ class CarteiraRepository:
             "cotacao_utilizada": cotacao_utilizada,
             "data_hora": movimento_data["data_hora"]
         }
+        
+    def registrar_transferencia(self, endereco_origem: str, endereco_destino: str, codigo_moeda: str, 
+                                valor_liquido: Decimal, valor_total_debito: Decimal, taxa_valor: Decimal) -> Dict[str, Any]:
+        """
+        Executa a transferência de forma transacional: debita a origem, credita o destino e registra o movimento.
+        """
+        with get_connection() as conn:
+            
+            moeda_row = conn.execute(
+                text("SELECT id_moeda FROM moeda WHERE codigo = :codigo"),
+                {"codigo": codigo_moeda}
+            ).mappings().first()
+
+            if not moeda_row:
+                raise ValueError(f"Moeda com código {codigo_moeda} não encontrada.")
+            
+            id_moeda = moeda_row["id_moeda"]
+
+            with conn.begin():
+                
+                saldo_origem_row = conn.execute(
+                    text("""
+                        SELECT saldo FROM saldo_carteira
+                        WHERE endereco_carteira = :endereco_origem AND id_moeda = :id_moeda
+                        FOR UPDATE
+                    """),
+                    {"endereco_origem": endereco_origem, "id_moeda": id_moeda}
+                ).mappings().first()
+
+                saldo_atual = saldo_origem_row["saldo"] if saldo_origem_row else Decimal("0.00")
+                
+                if saldo_atual < valor_total_debito:
+                    raise ValueError(f"Saldo insuficiente ({saldo_atual}) na origem para débito total de ({valor_total_debito}).")
+
+                conn.execute(
+                    text("""
+                        UPDATE saldo_carteira
+                           SET saldo = saldo - :total_debito, data_atualizacao = CURRENT_TIMESTAMP
+                         WHERE endereco_carteira = :endereco_origem AND id_moeda = :id_moeda
+                    """),
+                    {
+                        "endereco_origem": endereco_origem,
+                        "id_moeda": id_moeda,
+                        "total_debito": valor_total_debito
+                    },
+                )
+                
+                conn.execute(
+                    text("""
+                        INSERT INTO saldo_carteira (endereco_carteira, id_moeda, saldo)
+                        VALUES (:endereco_destino, :id_moeda, :valor_liquido)
+                        ON DUPLICATE KEY UPDATE saldo = saldo + :valor_liquido, data_atualizacao = CURRENT_TIMESTAMP
+                    """),
+                    {
+                        "endereco_destino": endereco_destino,
+                        "id_moeda": id_moeda,
+                        "valor_liquido": valor_liquido
+                    },
+                )
+                
+                movimento_result = conn.execute(
+                    text("""
+                        INSERT INTO transferencia (endereco_origem, endereco_destino, id_moeda, valor, taxa_valor)
+                        VALUES (:origem, :destino, :id_moeda, :valor_liquido, :taxa_valor)
+                    """),
+                    {
+                        "origem": endereco_origem,
+                        "destino": endereco_destino,
+                        "id_moeda": id_moeda,
+                        "valor_liquido": valor_liquido,
+                        "taxa_valor": taxa_valor
+                    },
+                )
+                
+                id_transferencia = movimento_result.lastrowid
+                
+                movimento_data = conn.execute(
+                    text("""
+                        SELECT data_hora FROM transferencia WHERE id_transferencia = :id
+                    """),
+                    {"id": id_transferencia}
+                ).mappings().first()
+                
+        return {
+            "id_transferencia": id_transferencia,
+            "endereco_origem": endereco_origem,
+            "endereco_destino": endereco_destino,
+            "codigo_moeda": codigo_moeda,
+            "valor": valor_liquido,
+            "taxa_valor": taxa_valor,
+            "data_hora": movimento_data["data_hora"]
+        }

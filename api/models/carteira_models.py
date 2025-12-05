@@ -41,3 +41,10 @@ class ConversaoInput(BaseModel):
     codigo_destino: str
     valor_origem: Decimal 
     chave_privada: str
+    
+class TransferenciaInput(BaseModel):
+    """Modelo para a requisição de transferência."""
+    endereco_destino: str
+    codigo_moeda: str
+    valor: Decimal
+    chave_privada_origem: str

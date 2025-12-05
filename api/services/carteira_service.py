@@ -9,7 +9,7 @@ from api.services.key_service import gerar_chave
 
 TAXA_SAQUE_PERCENTUAL = Decimal(os.getenv("TAXA_SAQUE_PERCENTUAL", "0.01"))
 TAXA_CONVERSAO_PERCENTUAL = Decimal(os.getenv("TAXA_CONVERSAO_PERCENTUAL", "0.02"))
-
+TAXA_TRANSFERENCIA_PERCENTUAL = Decimal(os.getenv("TAXA_TRANSFERENCIA_PERCENTUAL", "0.01"))
 class CarteiraService:
     
     MOEDAS_OBRIGATORIAS = ['BTC', 'ETH', 'SOL', 'USD', 'BRL']
@@ -171,3 +171,32 @@ class CarteiraService:
         
         return movimento 
             
+    def transferir_fundos(self, endereco_origem: str, transferencia_data: TransferenciaInput):
+    
+        if not self.carteira_repo.validar_chave_privada(endereco_origem, transferencia_data.chave_privada_origem):
+            raise ValueError("Chave privada de origem inválida.")
+
+        if not self.carteira_repo.buscar_por_endereco(transferencia_data.endereco_destino):
+            raise ValueError("Carteira de destino não encontrada.")
+        
+        valor_liquido = transferencia_data.valor
+        taxa_percentual = TAXA_TRANSFERENCIA_PERCENTUAL
+        
+        taxa_valor = valor_liquido * taxa_percentual
+        
+        valor_total_debito = valor_liquido + taxa_valor
+        
+        saldo_origem = self.carteira_repo.buscar_saldo_por_moeda(endereco_origem, transferencia_data.codigo_moeda)
+        if saldo_origem is None or saldo_origem < valor_total_debito:
+            raise ValueError("Saldo insuficiente na carteira de origem para cobrir o valor e a taxa.")
+
+        movimento = self.carteira_repo.registrar_transferencia(
+            endereco_origem=endereco_origem,
+            endereco_destino=transferencia_data.endereco_destino,
+            codigo_moeda=transferencia_data.codigo_moeda,
+            valor_liquido=valor_liquido,
+            valor_total_debito=valor_total_debito,
+            taxa_valor=taxa_valor
+        )
+        
+        return movimento 

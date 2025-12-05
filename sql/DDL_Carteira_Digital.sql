@@ -89,3 +89,17 @@ Create Table IF NOT EXISTS CONVERSAO(
     FOREIGN KEY(id_moeda_origem) REFERENCES MOEDA(id_moeda),
     FOREIGN KEY(id_moeda_destino) REFERENCES MOEDA(id_moeda)
 );
+
+Create Table IF NOT EXISTS TRANSFERENCIA(
+    id_transferencia BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    endereco_origem CHAR(32) NOT NULL,
+    endereco_destino CHAR(32) NOT NULL,
+    id_moeda SMALLINT NOT NULL,
+    valor DECIMAL(18,8) NOT NULL,
+    taxa_valor DECIMAL(18,8) NOT NULL,
+    data_hora DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY(endereco_origem) REFERENCES CARTEIRA(endereco_carteira),
+    FOREIGN KEY(endereco_destino) REFERENCES CARTEIRA(endereco_carteira),
+    FOREIGN KEY(id_moeda) REFERENCES MOEDA(id_moeda)
+);
