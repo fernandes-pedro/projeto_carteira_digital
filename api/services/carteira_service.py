@@ -196,7 +196,12 @@ class CarteiraService:
             
     def transferir_fundos(self, endereco_origem: str, transferencia_data: TransferenciaInput):
     
-        if not self.carteira_repo.validar_chave_privada(endereco_origem, transferencia_data.chave_privada_origem):
+        if not transferencia_data.chave_privada_origem or not transferencia_data.chave_privada_origem.strip():
+            raise ValueError("Chave privada é obrigatória para transferências.")
+        
+        # Limpa a chave privada antes de validar
+        chave_privada_limpa = transferencia_data.chave_privada_origem.strip()
+        if not self.carteira_repo.validar_chave_privada(endereco_origem, chave_privada_limpa):
             raise ValueError("Chave privada de origem inválida.")
 
         if not self.carteira_repo.buscar_por_endereco(transferencia_data.endereco_destino):

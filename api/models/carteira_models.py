@@ -15,8 +15,11 @@ class Carteira(BaseModel):
     status: str
     
 class SaldoItem(BaseModel):
+    id_moeda: Optional[int] = None
     codigo_moeda: str
+    nome_moeda: Optional[str] = None
     saldo: Decimal
+    data_atualizacao: Optional[datetime] = None
 
 class CarteiraSaldoResponse(BaseModel):
     endereco_carteira: str

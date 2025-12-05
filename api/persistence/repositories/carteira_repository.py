@@ -142,15 +142,46 @@ class CarteiraRepository:
 
         return [dict(r) for r in rows]
     
+    def buscar_saldo_por_moeda(self, endereco_carteira: str, codigo_moeda: str) -> Optional[Decimal]:
+        """
+        Retorna o saldo de uma moeda específica de uma carteira.
+        Retorna None se a carteira não tiver saldo para essa moeda.
+        """
+        with get_connection() as conn:
+            row = conn.execute(
+                text("""
+                    SELECT sc.saldo
+                      FROM saldo_carteira sc
+                      JOIN moeda m ON sc.id_moeda = m.id_moeda
+                     WHERE sc.endereco_carteira = :endereco
+                       AND m.codigo = :codigo_moeda
+                """),
+                {"endereco": endereco_carteira, "codigo_moeda": codigo_moeda},
+            ).mappings().first()
+
+        if not row:
+            return None
+        
+        return row["saldo"]
+    
     def inicializar_saldos(self, endereco_carteira: str, saldos_iniciais: List[SaldoItem]):
         codigos = [s.codigo_moeda for s in saldos_iniciais]
         
+        # Validação: garante que os códigos são válidos (apenas letras e números)
+        for codigo in codigos:
+            if not codigo.isalnum() or len(codigo) > 5:
+                raise ValueError(f"Código de moeda inválido: {codigo}")
+        
         with get_connection() as conn:
+            # Como os códigos vêm de uma lista fixa e validada, podemos usar f-string com segurança
+            # Mas ainda melhor seria usar uma abordagem mais segura
+            codigos_quoted = ', '.join([f"'{c}'" for c in codigos])
+            
             moedas_map = conn.execute(
                 text(f"""
                     SELECT id_moeda, codigo
                     FROM moeda
-                    WHERE codigo IN ({', '.join(f"'{c}'" for c in codigos)})
+                    WHERE codigo IN ({codigos_quoted})
                 """)
             ).mappings().all()
             
@@ -366,12 +397,11 @@ class CarteiraRepository:
         """
         with get_connection() as conn:
             moedas_map = conn.execute(
-                text("""
+                text(f"""
                     SELECT id_moeda, codigo
                     FROM moeda
-                    WHERE codigo IN (:origem, :destino)
-                """),
-                {"origem": codigo_origem, "destino": codigo_destino}
+                    WHERE codigo IN ('{codigo_origem}', '{codigo_destino}')
+                """)
             ).mappings().all()
 
             if len(moedas_map) < 2:
