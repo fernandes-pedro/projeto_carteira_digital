@@ -58,5 +58,17 @@ Create Table IF NOT EXISTS SALDO_CARTEIRA(
     PRIMARY KEY(endereco_carteira, id_moeda),
     FOREIGN KEY(endereco_carteira) REFERENCES CARTEIRA(endereco_carteira),
     FOREIGN KEY(id_moeda) REFERENCES MOEDA(id_moeda)
-    
+);
+
+Create Table IF NOT EXISTS DEPOSITO_SAQUE(
+    id_movimento BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    endereco_carteira CHAR(32) NOT NULL,
+    id_moeda SMALLINT NOT NULL,
+    tipo VARCHAR(10) NOT NULL,
+    valor DECIMAL(18,8) NOT NULL,
+    taxa_valor DECIMAL(18,8) NOT NULL DEFAULT 0.00,
+    data_hora DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY(endereco_carteira) REFERENCES CARTEIRA(endereco_carteira),
+    FOREIGN KEY(id_moeda) REFERENCES MOEDA(id_moeda)
 );
