@@ -72,3 +72,20 @@ Create Table IF NOT EXISTS DEPOSITO_SAQUE(
     FOREIGN KEY(endereco_carteira) REFERENCES CARTEIRA(endereco_carteira),
     FOREIGN KEY(id_moeda) REFERENCES MOEDA(id_moeda)
 );
+
+Create Table IF NOT EXISTS CONVERSAO(
+    id_conversao BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    endereco_carteira CHAR(32) NOT NULL,
+    id_moeda_origem SMALLINT NOT NULL,
+    id_moeda_destino SMALLINT NOT NULL,
+    valor_origem DECIMAL(18,8) NOT NULL,
+    valor_destino DECIMAL(18,8) NOT NULL,
+    taxa_percentual DECIMAL(18,8) NOT NULL,
+    taxa_valor DECIMAL(18,8) NOT NULL,
+    cotacao_utilizada DECIMAL(18,8) NOT NULL,
+    data_hora DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY(endereco_carteira) REFERENCES CARTEIRA(endereco_carteira),
+    FOREIGN KEY(id_moeda_origem) REFERENCES MOEDA(id_moeda),
+    FOREIGN KEY(id_moeda_destino) REFERENCES MOEDA(id_moeda)
+);

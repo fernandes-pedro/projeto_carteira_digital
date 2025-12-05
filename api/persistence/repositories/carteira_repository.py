@@ -185,8 +185,6 @@ class CarteiraRepository:
             
         hash_armazenado = row["hash_chave_privada"]
         return hash_fornecido == hash_armazenado
-    
-    # persistence/repositories/carteira_repository.py (Adicionar à classe CarteiraRepository)
 
     def registrar_deposito(self, endereco_carteira: str, codigo_moeda: str, valor: Decimal) -> Dict[str, Any]:
         """
@@ -324,5 +322,108 @@ class CarteiraRepository:
             "tipo": "SAQUE",
             "valor": valor,
             "taxa_valor": taxa,
+            "data_hora": movimento_data["data_hora"]
+        }
+    
+    def registrar_conversao(self, endereco_carteira: str, codigo_origem: str, codigo_destino: str, 
+                            valor_origem: Decimal, valor_destino: Decimal, taxa_percentual: Decimal, 
+                            taxa_valor: Decimal, cotacao_utilizada: Decimal) -> Dict[str, Any]:
+        """
+        Executa a conversão de forma transacional: registra a operação, debita a origem e credita o destino.
+        """
+        with get_connection() as conn:
+            
+            moedas_map = conn.execute(
+                text("""
+                    SELECT id_moeda, codigo
+                    FROM moeda
+                    WHERE codigo IN (:origem, :destino)
+                """),
+                {"origem": codigo_origem, "destino": codigo_destino}
+            ).mappings().all()
+
+            if len(moedas_map) < 2:
+                raise ValueError("Moeda de origem ou destino não encontrada no cadastro.")
+            
+            id_moeda_origem = next(m["id_moeda"] for m in moedas_map if m["codigo"] == codigo_origem)
+            id_moeda_destino = next(m["id_moeda"] for m in moedas_map if m["codigo"] == codigo_destino)
+
+            with conn.begin():
+                
+                saldo_origem_row = conn.execute(
+                    text("""
+                        SELECT saldo FROM saldo_carteira
+                        WHERE endereco_carteira = :endereco AND id_moeda = :id_origem
+                        FOR UPDATE
+                    """),
+                    {"endereco": endereco_carteira, "id_origem": id_moeda_origem}
+                ).mappings().first()
+
+                saldo_atual = saldo_origem_row["saldo"] if saldo_origem_row else Decimal("0.00")
+                
+                if saldo_atual < valor_origem:
+                    raise ValueError(f"Saldo insuficiente ({saldo_atual}) na moeda {codigo_origem} para conversão.")
+
+                conn.execute(
+                    text("""
+                        UPDATE saldo_carteira
+                           SET saldo = saldo - :valor_origem, data_atualizacao = CURRENT_TIMESTAMP
+                         WHERE endereco_carteira = :endereco AND id_moeda = :id_origem
+                    """),
+                    {
+                        "endereco": endereco_carteira,
+                        "id_origem": id_moeda_origem,
+                        "valor_origem": valor_origem
+                    },
+                )
+                conn.execute(
+                    text("""
+                        INSERT INTO saldo_carteira (endereco_carteira, id_moeda, saldo)
+                        VALUES (:endereco, :id_destino, :valor_destino)
+                        ON DUPLICATE KEY UPDATE saldo = saldo + :valor_destino, data_atualizacao = CURRENT_TIMESTAMP
+                    """),
+                    {
+                        "endereco": endereco_carteira,
+                        "id_destino": id_moeda_destino,
+                        "valor_destino": valor_destino
+                    },
+                )
+                
+                movimento_result = conn.execute(
+                    text("""
+                        INSERT INTO conversao (endereco_carteira, id_moeda_origem, id_moeda_destino, valor_origem, 
+                                               valor_destino, taxa_percentual, taxa_valor, cotacao_utilizada)
+                        VALUES (:endereco, :id_origem, :id_destino, :v_origem, :v_destino, :t_perc, :t_valor, :cotacao)
+                    """),
+                    {
+                        "endereco": endereco_carteira,
+                        "id_origem": id_moeda_origem,
+                        "id_destino": id_moeda_destino,
+                        "v_origem": valor_origem,
+                        "v_destino": valor_destino,
+                        "t_perc": taxa_percentual,
+                        "t_valor": taxa_valor,
+                        "cotacao": cotacao_utilizada
+                    },
+                )
+                
+                id_conversao = movimento_result.lastrowid
+                
+                movimento_data = conn.execute(
+                    text("""
+                        SELECT data_hora FROM conversao WHERE id_conversao = :id
+                    """),
+                    {"id": id_conversao}
+                ).mappings().first()
+                
+        return {
+            "id_conversao": id_conversao,
+            "endereco_carteira": endereco_carteira,
+            "codigo_origem": codigo_origem,
+            "codigo_destino": codigo_destino,
+            "valor_origem": valor_origem,
+            "valor_destino": valor_destino,
+            "taxa_valor": taxa_valor,
+            "cotacao_utilizada": cotacao_utilizada,
             "data_hora": movimento_data["data_hora"]
         }

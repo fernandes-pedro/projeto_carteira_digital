@@ -34,3 +34,10 @@ class MovimentoHistorico(BaseModel):
     valor: Decimal
     taxa_valor: Decimal
     data_hora: datetime
+
+class ConversaoInput(BaseModel):
+    """Modelo para a requisição de conversão."""
+    codigo_origem: str
+    codigo_destino: str
+    valor_origem: Decimal 
+    chave_privada: str

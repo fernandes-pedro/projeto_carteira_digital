@@ -2,11 +2,14 @@ from typing import List
 from datetime import datetime
 from decimal import Decimal
 
+from api.services.coinbase_service import get_cotacao
 from api.persistence.repositories.carteira_repository import CarteiraRepository
-from api.models.carteira_models import Carteira, CarteiraCriada, SaldoItem
+from api.models.carteira_models import Carteira, CarteiraCriada, SaldoItem, ConversaoInput
 from api.services.key_service import gerar_chave
 
 TAXA_SAQUE_PERCENTUAL = Decimal(os.getenv("TAXA_SAQUE_PERCENTUAL", "0.01"))
+TAXA_CONVERSAO_PERCENTUAL = Decimal(os.getenv("TAXA_CONVERSAO_PERCENTUAL", "0.02"))
+
 class CarteiraService:
     
     MOEDAS_OBRIGATORIAS = ['BTC', 'ETH', 'SOL', 'USD', 'BRL']
@@ -134,3 +137,37 @@ class CarteiraService:
             return movimento
         except Exception as e:
             raise Exception(f"Falha ao processar saque: {e}")
+        
+    async def converter_moedas(self, endereco_carteira: str, conversao_data: ConversaoInput):
+    
+        if not self.carteira_repo.validar_chave_privada(endereco_carteira, conversao_data.chave_privada):
+            raise ValueError("Chave privada inválida ou carteira não encontrada.")
+
+        cotacao = await get_cotacao(conversao_data.codigo_origem, conversao_data.codigo_destino)
+        
+        valor_origem = conversao_data.valor_origem
+        taxa_percentual = TAXA_CONVERSAO_PERCENTUAL
+        
+        valor_bruto_destino = valor_origem * cotacao
+        
+        taxa_valor = valor_bruto_destino * taxa_percentual
+        
+        valor_destino_liquido = valor_bruto_destino - taxa_valor
+        
+        saldo_origem = self.carteira_repo.buscar_saldo_por_moeda(endereco_carteira, conversao_data.codigo_origem)
+        if saldo_origem is None or saldo_origem < valor_origem:
+            raise ValueError("Saldo insuficiente na moeda de origem para conversão.")
+
+        movimento = self.carteira_repo.registrar_conversao(
+            endereco_carteira=endereco_carteira,
+            codigo_origem=conversao_data.codigo_origem,
+            codigo_destino=conversao_data.codigo_destino,
+            valor_origem=valor_origem,
+            valor_destino=valor_destino_liquido,
+            taxa_percentual=taxa_percentual,
+            taxa_valor=taxa_valor,
+            cotacao_utilizada=cotacao
+        )
+        
+        return movimento 
+            

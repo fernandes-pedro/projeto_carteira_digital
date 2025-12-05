@@ -1,11 +1,11 @@
 from fastapi import APIRouter, HTTPException, Depends, status
-from models.carteira_models import CarteiraCriada, MovimentoInput, MovimentoHistorico
+from models.carteira_models import CarteiraCriada, MovimentoInput, MovimentoHistorico, ConversaoInput
 from services.carteira_service import CarteiraService
 from typing import List
 
 from api.services.carteira_service import CarteiraService
 from api.persistence.repositories.carteira_repository import CarteiraRepository
-from api.models.carteira_models import Carteira, CarteiraCriada, Saldo
+from api.models.carteira_models import CarteiraCriada
 
 
 router = APIRouter(prefix="/carteiras", tags=["carteiras"])
@@ -124,3 +124,37 @@ def realizar_saque(
              raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+    
+@router.post("/{endereco_carteira}/conversoes",
+             response_model=dict, # Substitua por ConversaoHistorico se criado
+             status_code=status.HTTP_201_CREATED)
+async def realizar_conversao( # O endpoint deve ser ASYNC
+    endereco_carteira: str,
+    conversao: ConversaoInput,
+    service: CarteiraService = Depends(get_carteira_service),
+):
+    """
+    Converte saldo de uma moeda para outra, aplicando taxa e usando cotação externa (Coinbase).
+    Exige chave privada e validação de saldo.
+    """
+    # 1. Validação da Chave Privada (Obrigatória)
+    if not conversao.chave_privada:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Chave privada é obrigatória para conversão.")
+        
+    try:
+        # A função converter_moedas no serviço faz a chamada HTTP, os cálculos e a transação no DB
+        return await service.converter_moedas( # Chamada deve usar 'await'
+            endereco_carteira=endereco_carteira,
+            conversao_data=conversao
+        )
+    except ValueError as e:
+        # Erro de Chave Inválida, Saldo Insuficiente, Moeda não encontrada, etc.
+        if "Chave privada inválida" in str(e):
+             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
+        elif "Saldo insuficiente" in str(e):
+             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        else:
+             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception as e:
+        # Erros de API da Coinbase (4XX, 5XX) ou falha de transação interna
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Erro no processamento da conversão: {e}")
