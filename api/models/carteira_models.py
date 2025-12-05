@@ -1,8 +1,7 @@
-from typing import Literal
+from typing import Literal, Optional
 from datetime import  datetime
 from pydantic import BaseModel
 from decimal import Decimal
-
 
 class CarteiraCriada(BaseModel):
     endereco_carteira: str
@@ -21,3 +20,17 @@ class SaldoItem(BaseModel):
 class CarteiraSaldoResponse(BaseModel):
     endereco_carteira: str
     saldos: list[SaldoItem]
+    
+class MovimentoInput(BaseModel):
+    codigo_moeda: str 
+    valor: Decimal
+    chave_privada: Optional[str] = None
+    
+class MovimentoHistorico(BaseModel):
+    id_movimento: int
+    endereco_carteira: str
+    codigo_moeda: str
+    tipo: Literal["DEPOSITO", "SAQUE"]
+    valor: Decimal
+    taxa_valor: Decimal
+    data_hora: datetime
