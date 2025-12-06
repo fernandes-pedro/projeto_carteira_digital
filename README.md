@@ -1,175 +1,241 @@
+# 💼 Sistema de Gerenciamento de Carteiras Digitais
 
-# Projeto Carteira Digital 🪙
+Sistema acadêmico desenvolvido para demonstrar um ambiente completo de **carteiras digitais**, incluindo criação de carteiras, depósitos, saques, conversões de moedas, transferências e consulta de saldos e histórico.  
 
-Este projeto é um *template* inicial para implementar uma **API de Carteira Digital** 
-na disciplina Projeto Banco de Dados:
-
-- **FastAPI**
-- **MySQL**
-- **SQLAlchemy (Core, sem ORM)**
-- **SQL puro para DDL/DML**
-- Integração com API pública da **Coinbase** para conversão de moedas
-
-A carteira permite:
-
-- Criar carteiras (com chave pública e chave privada)
-- Ver saldos por moeda (BTC, ETH, SOL, USD)
-- Fazer **depósitos**
-- Fazer **saques** (com taxa e validação da chave privada)
-- Fazer **conversão entre moedas** (usando cotação da Coinbase)
-- Fazer **transferência entre carteiras**
+O projeto apresenta **arquitetura limpa**, boas práticas de desenvolvimento, segurança baseada em hash SHA-256 e camadas bem definidas entre serviço, modelos e banco de dados.
 
 ---
 
-## 1. Pré-requisitos
-
-Antes de começar, você precisa ter instalado no seu computador:
-
-- Python 3.10+
-- MySQL 8+
-- git (opcional)
-
-Verifique as versões:
-
-```bash
-python --version
-mysql --version
-```
+## 🧭 Sumário
+- [Objetivos Acadêmicos](#-objetivos-acadêmicos)
+- [Arquitetura do Sistema](#-arquitetura-do-sistema)
+- [Segurança](#-segurança)
+- [Moedas Suportadas](#-moedas-suportadas)
+- [Funcionalidades](#-funcionalidades)
+- [Regras de Negócio](#-regras-de-negócio)
+- [Fluxo de Uso](#-fluxo-completo-de-uso)
+- [Tecnologias Utilizadas](#-tecnologias-e-bibliotecas-utilizadas)
+- [Conclusão](#-conclusão)
 
 ---
 
-## 2. Clonar ou baixar o projeto
+# 🎓 Objetivos Acadêmicos
 
-```bash
-git clone https://github.com/timotrob/WalletDb_v2.git
-cd projeto_carteira_digital
-```
+Este sistema demonstra:
 
-Ou extraia o ZIP e abra o terminal dentro da pasta do projeto.
-
----
-
-## 3. Criar e ativar o ambiente virtual (venv)
-
-### Windows:
-```bash
-python -m venv venv
-.env\Scripts\Activate
-```
-
-### Linux/Mac:
-```bash
-python3 -m venv venv
-source venv/bin/activate
-```
+- Construção de API REST com **camadas bem separadas**  
+- Uso de **regras financeiras reais**  
+- Persistência com SQL  
+- Hash seguro de chaves privadas  
+- Manipulação de moedas, taxas e operações sensíveis  
+- Comunicação com serviços externos (cotação de moedas)  
+- Estruturação profissional para trabalhos acadêmicos  
 
 ---
 
-## 4. Instalar dependências
+# 🏛 Arquitetura do Sistema
 
-```bash
-pip install -r requirements.txt
-```
+O projeto segue uma arquitetura modular:
 
----
+/api
+├── /models → Modelos Pydantic
+├── /services → Regras de negócio (CarteiraService)
+├── /persistence
+│ └── /repositories → Acesso ao banco (CarteiraRepository)
+├── /routes → Endpoints REST
+└── main.py → Inicialização da API
 
-## 5. Criar o banco e usuário no MySQL
 
-Execute:
-
-```sql
-SOURCE /sql/DDL_Carteira_Digital.sql;
-```
-
-Isso irá:
-
-- Criar o banco `wallet_homolog`
-- Criar usuário restrito `wallet_api_homolog`
-A Criação das tabelas não está incluindo,
-deve ser gerado pelo aluno.
+### ✔ Benefícios:
+- Fácil manutenção  
+- Testabilidade  
+- Baixo acoplamento  
+- Reutilização organizada  
 
 ---
 
-## 6. Criar o arquivo `.env`
+# 🔐 Segurança
 
-Crie o arquivo `.env` na raiz do projeto:
+### 🔑 Geração e armazenamento de chaves privadas
 
-```env
-DB_HOST=localhost
-DB_PORT=3306
-DB_USER=wallet_api_homolog
-DB_PASSWORD=????
-DB_NAME=wallet_homolog
+Cada carteira criada gera:
+
+- **Endereço público**
+- **Chave privada real (retornada apenas 1x)**
+- **Hash SHA-256 da chave privada (salvo no banco)**
+
+A chave privada **nunca é armazenada**, somente seu hash.
+
+### Processo:
+
+1. Gera chave privada real  
+2. Calcula o hash com SHA-256  
+3. Armazena **apenas o hash**  
+4. Operações sensíveis comparam:
+
+sha256(chave informada) == hash armazenado
+
+
+### Operações que exigem chave privada:
+- Saque  
+- Conversão  
+- Transferência  
+
+---
+
+# 💰 Moedas Suportadas
+
+Toda carteira criada inicia com saldo zero nas moedas:
+
+- **BTC**
+- **ETH**
+- **SOL**
+- **USD**
+- **BRL**
+
+Essas moedas são obrigatórias e geradas automaticamente.
+
+---
+
+# ⚙️ Funcionalidades
+
+A seguir estão todas as operações implementadas:
+
+---
+
+## 🆕 Criar Carteira
+- Gera endereço único  
+- Cria chave privada e hash  
+- Salva apenas o hash  
+- Inicializa as moedas obrigatórias  
+- Retorna a chave privada **somente no momento da criação**  
+
+---
+
+## 🔎 Buscar Carteira
+Retorna endereço, data de criação e status.
+
+---
+
+## 📜 Listar Carteiras
+Lista todas as carteiras cadastradas.
+
+---
+
+## 🔒 Bloquear Carteira
+Atualiza o status para **BLOQUEADA**.  
+Carteiras bloqueadas não podem realizar operações sensíveis.
+
+---
+
+## 💵 Buscar Saldos
+Retorna:
+
+- Código da moeda  
+- Nome  
+- Saldo atual  
+- Data de atualização  
+
+---
+
+## ➕ Depósito
+Permite depositar valor positivo em qualquer moeda.
+
+---
+
+## 🏧 Saque (com chave privada)
+Regras:
+- Valor positivo  
+- Chave privada válida  
+- Saldo suficiente  
+- Taxa aplicada:
+
+TAXA_SAQUE_PERCENTUAL = 1% (0.01)
+
+---
+
+## 🔁 Conversão de Moedas (cotação real)
+Processo:
+
+1. Valida chave privada  
+2. Busca cotação externa
+3. Calcula valor bruto  
+4. Aplica taxa de conversão (2%):
+
+TAXA_CONVERSAO_PERCENTUAL = 0.02
+
+5. Registra operação no banco  
+
+---
+
+## 📤 Transferência entre Carteiras
+Regras:
+
+- Exige chave privada da origem  
+- Carteira destino deve existir  
+- Verifica saldo  
+- Aplica taxa:
+
+TAXA_TRANSFERENCIA_PERCENTUAL = 0.0
+
+---
+
+# 📚 Regras de Negócio
+
+✔ Chave privada real nunca é salva  
+✔ Carteiras bloqueadas não operam  
+✔ Todas operações são registradas em histórico  
+✔ Taxas configuradas via variáveis de ambiente:
+
 TAXA_SAQUE_PERCENTUAL=0.01
 TAXA_CONVERSAO_PERCENTUAL=0.02
 TAXA_TRANSFERENCIA_PERCENTUAL=0.01
-PRIVATE_KEY_SIZE=32
-PUBLIC_KEY_SIZE=16
-```
+
+✔ Moedas obrigatórias instaladas automaticamente  
 
 ---
 
-## 7. Estrutura do projeto
+# 🔄 Fluxo Completo de Uso
 
-```
-projeto_carteira_digital/
-│
-├── api/
-│   ├── main.py
-│   ├── models/
-│   ├── routers/
-│   ├── services/
-│   └── persistence/
-│       │── repositories/
-│       └── db.py
-│
-├── sql/DDL_Carteira_Digital.sql
-├── requirements.txt
-└── .env
-```
+1. Criar carteira  
+2. Guardar a chave privada (não é possível recuperar depois)  
+3. Depositar valores  
+4. Converter ou transferir  
+5. Consultar saldos  
+6. Bloquear quando necessário  
 
 ---
 
-## 8. Subir a API
+# 🛠 Tecnologias e Bibliotecas Utilizadas
 
-```bash
-uvicorn api.main:app --reload
-```
-
-Acesse:
-
-👉 http://127.0.0.1:8000/docs
-
----
-
-## 9. Testes básicos
-
-### Criar carteira:
-POST /carteiras
-
-### Ver saldo:
-GET /carteiras/{endereco}/saldos
-
-### Depósito:
-POST /carteiras/{endereco}/depositos
-
-### Saque:
-POST /carteiras/{endereco}/saques
-
-### Conversão:
-POST /carteiras/{endereco}/conversoes
-
-### Transferência:
-POST /carteiras/{endereco_origem}/transferencias
+- **Python 3.11+**  
+- **FastAPI**  
+- **Pydantic**  
+- **PostgreSQL / SQLite**  
+- **hashlib (SHA-256)**  
+- **Decimal (precisão financeira)**  
+- **async/await para cotações externas**  
 
 ---
 
-## 10. Problemas comuns
+# 📌 Conclusão
 
-- Banco não encontrado → conferir `.env`
-- MySQL parado → iniciar serviço
-- ImportError → verificar `__init__.py`
+Este projeto apresenta um sistema completo de gestão de carteiras digitais, construído com:
+
+- Arquitetura organizada;  
+- Regras de negócio realistas;  
+- Segurança com hash SHA-256;  
+- Persistência sólida;  
+- Divisão clara entre camadas.  
+
+Ideal para fins acadêmicos e estudos avançados de APIs, sistemas financeiros e boas práticas de software.
 
 ---
 
-## 11. Boa implementação! 🚀
+Se quiser, posso adicionar:
+
+📊 **Fluxograma das operações**  
+📘 **Versão em inglês**  
+🛠 **Badges do GitHub**  
+📄 **Diagrama UML**  
+📦 **Seção de instalação e execução**  
