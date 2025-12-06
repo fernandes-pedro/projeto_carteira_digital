@@ -161,10 +161,9 @@ Processo:
 2. Busca cotação externa
 3. Calcula valor bruto  
 4. Aplica taxa de conversão (2%):
+5. Registra operação no banco 
 
 TAXA_CONVERSAO_PERCENTUAL = 0.02
-
-5. Registra operação no banco  
 
 ---
 
